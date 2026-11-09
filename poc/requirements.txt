@@ -1,0 +1,2 @@
+# Runtime dependencies: none — the PoC uses the Python standard library only.
+# This file exists so tooling that expects a runtime requirements file finds one.
