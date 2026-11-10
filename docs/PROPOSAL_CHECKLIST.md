@@ -11,7 +11,7 @@ each criterion to concrete evidence in this repository.
 | 3 | Reasonable, milestone-based budget | $27,000 / 4 milestones / no upfront ([BUDGET.md](BUDGET.md)) |
 | 4 | Concrete deliverables & acceptance criteria | PROPOSAL.md §4 table: every milestone has checkable outputs |
 | 5 | Public, verifiable progress | CI-green repo from day one; PoC with tests in `poc/`; commit history |
-| 6 | Team has credibility | [TEAM.md](../TEAM.md) — applicant completes honestly before submission; support: 1–2 merged upstream PRs recommended first |
+| 6 | Team has credibility | Honest, first-time applicant profile in the application issue (Project Lead section, docs/ZCG_APPLICATION_FORM.md); 1–2 merged upstream PRs recommended before ZCG review |
 | 7 | Community engagement plan | Forum spec review at M1; milestone updates; ZecHub write-up (PROPOSAL.md §8) |
 | 8 | Risks acknowledged with mitigations | PROPOSAL.md §7 (bandwidth fallback, operator recruitment, upstream drift) |
 | 9 | Licensing / open source | MIT, public from day one ([LICENSE](../LICENSE)) |

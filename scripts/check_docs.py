@@ -20,7 +20,6 @@ REQUIRED = [
     "LICENSE",
     "CONTRIBUTING.md",
     "SECURITY.md",
-    "TEAM.md",
     "docs/PROPOSAL.md",
     "docs/TECHNICAL_WHITEPAPER.md",
     "docs/BUDGET.md",

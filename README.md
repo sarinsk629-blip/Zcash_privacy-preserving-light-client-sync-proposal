@@ -40,7 +40,6 @@ ZCG has actually approved, responding to an open RFP rather than an invented nee
 | [`docs/PROPOSAL_CHECKLIST.md`](docs/PROPOSAL_CHECKLIST.md) | Every ZCG approval criterion mapped to our evidence |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | M1–M4 delivery plan |
 | [`poc/`](poc/README.md) | Working Python PoC: multi-server PIR + tiered sync demo + tests |
-| [`TEAM.md`](TEAM.md) | Applicant profile (to be completed by the applicant before submission) |
 
 ## Quickstart (PoC)
 

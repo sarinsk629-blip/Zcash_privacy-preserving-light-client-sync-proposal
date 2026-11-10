@@ -82,7 +82,8 @@ day one. See [BUDGET.md](BUDGET.md) for the line-item breakdown.
   submission: link 1–2 prior projects or merged PRs; ZCG weights track record
   heavily)*
 
-See [TEAM.md](../TEAM.md) in the repository root.
+Team details are provided in the grant application issue itself
+(Project Lead section) and in docs/ZCG_APPLICATION_FORM.md.
 
 ## 7. Risks and mitigations
 
