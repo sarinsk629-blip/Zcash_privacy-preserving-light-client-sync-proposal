@@ -7,7 +7,7 @@ each criterion to concrete evidence in this repository.
 | # | ZCG criterion | Our evidence |
 |---|---------------|--------------|
 | 1 | Addresses a stated Zcash need | Responds to the open lightwalletd-infrastructure RFP ([RESEARCH.md §1](RESEARCH.md)); hits 3 listed priorities verbatim |
-| 2 | Not reinventing the wheel | Builds on lightwalletd, librustzcash Tor work (#2665), SDK Tor plans (#1741) ([RESEARCH.md §3](RESEARCH.md)) |
+| 2 | Not reinventing the wheel | Builds on lightwalletd, the wallets' **shipped** Arti/Tor integrations (Zashi 2.1, Zkool), and upstream work (#2665, #1741) — targets only the unsolved layer ([RESEARCH.md](RESEARCH.md), sources 10–12) |
 | 3 | Reasonable, milestone-based budget | $27,000 / 4 milestones / no upfront ([BUDGET.md](BUDGET.md)) |
 | 4 | Concrete deliverables & acceptance criteria | PROPOSAL.md §4 table: every milestone has checkable outputs |
 | 5 | Public, verifiable progress | CI-green repo from day one; PoC with tests in `poc/`; commit history |

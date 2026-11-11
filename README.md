@@ -8,23 +8,31 @@ light client sync infrastructure, plus a **working proof-of-concept**.
 
 ## The problem
 
-Zcash light wallets (Zashi, Ywallet) sync through [lightwalletd](https://github.com/zcash/lightwalletd)
-servers. Today that sync:
+Zcash light wallets (Zashi, Zkool) sync through [lightwalletd](https://github.com/zcash/lightwalletd)
+servers. Since Zashi 2.1 (August 2025), wallets tunnel sync through Tor via the
+Arti client — **the IP-address leak is now largely solved**, building on
+ZCG-funded Arti work. But two metadata leaks remain:
 
-1. **leaks the user's IP address** to the server operator, and
-2. **lets the server see which blocks the wallet downloads** — a metadata trail
-   that can deanonymize otherwise fully shielded transactions.
+1. **the sync operator still sees which blocks the wallet downloads** — Tor
+   hides who you are, not what you request — and
+2. **sessions stay linkable**: a wallet's stable client onion identity lets the
+   operator cluster all of a wallet's sync activity.
+
+Both are metadata trails that can deanonymize otherwise fully shielded
+transactions.
 
 ## The proposal
 
-A Tor-integrated, multi-server PIR sync network for Zcash light clients,
-delivered as open source with three privacy tiers:
+The layer Tor does not provide: a **multi-server PIR sync network** for Zcash
+light clients (no single operator learns which block was requested), composed
+with the ecosystem's shipped Arti/Tor transports and the multi-operator
+lightwalletd network the open ZCG RFP calls for:
 
-| Tier | Transport | IP hidden? | Block queries hidden? |
-|------|-----------|:----------:|:---------------------:|
-| 0 | direct gRPC (status quo) | ✗ | ✗ |
-| 1 | Tor onion lightwalletd | ✓ | ✗ |
-| 2 | Tor + multi-server PIR | ✓ | ✓ |
+| Tier | Transport | IP hidden? | Block queries hidden? | Status |
+|------|-----------|:----------:|:---------------------:|--------|
+| 0 | direct gRPC (legacy default) | ✗ | ✗ | legacy |
+| 1 | Tor onion lightwalletd | ✓ | ✗ | **shipped**: Zashi 2.1 via Arti; native in Zkool |
+| 2 | Tor + multi-server PIR | ✓ | ✓ | **this proposal** |
 
 **Ask:** $27,000 over 8 months, paid per milestone — squarely inside the range
 ZCG has actually approved, responding to an open RFP rather than an invented need.

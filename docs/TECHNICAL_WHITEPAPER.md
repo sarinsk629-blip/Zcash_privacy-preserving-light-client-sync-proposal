@@ -10,6 +10,7 @@ Adversaries:
 | Adversary | Capability | Goal |
 |-----------|------------|------|
 | Sync-server operator | Sees gRPC connections and full request stream from its own server | Link a wallet to IPs and sync patterns |
+| Sync-server operator (post-Tor world) | Even when the wallet connects over Tor via Arti, it presents a **stable client onion identity** and its block requests remain visible | Cluster all sync sessions of a wallet over time; profile which blocks it pulls |
 | Network observer | Passive listener on the path (ISP, Wi-Fi, AS-level) | Infer that a client is syncing a Zcash wallet and when |
 | Colluding minority of PIR servers | Up to k−1 of k servers share their query logs | Learn which blocks a client retrieved |
 
@@ -19,16 +20,17 @@ model documents the baseline limitations we address.
 
 Assets protected:
 
-- **Client IP address** (identity leak)
+- **Client IP address** (identity leak) — largely solved already by the wallets'
+  Arti/Tor transports (Zashi 2.1+, Zkool); this design composes with them
 - **Sync query pattern** — which compact blocks the wallet downloads (timing /
-  interest leak)
+  interest leak) — **the gap this project closes**
 
 ## 2. Architecture
 
 ```mermaid
 flowchart LR
-    subgraph Client["Light wallet (Zashi / Ywallet)"]
-        W["Sync engine"] --> T["Privacy transport\n(tier selector)"]
+    subgraph Client["Light wallet (Zashi 2.1+, Zkool)"]
+        W["Sync engine"] --> T["Privacy transport\n(Arti/Tor, tier selector)"]
     end
     T -->|Tier 0: plain gRPC| S0["lightwalletd\n(sees IP + queries)"]
     T -->|Tier 1: onion| S1["lightwalletd onion service\n(sees queries, not IP)"]
@@ -42,16 +44,19 @@ flowchart LR
     A2 --> X
 ```
 
-- **Tier 0 (status quo).** Wallet ↔ lightwalletd directly. Observer + operator see
-  IP and every requested block height.
-- **Tier 1 (Tor onion sync).** lightwalletd exposed as an onion service; the SDK's
-  transport is pointed at it (the same direction as librustzcash #2665 and
-  zcash-android-wallet-sdk #1741). Operator sees queries but not the IP; path
-  observers see only Tor traffic.
-- **Tier 2 (Tor + multi-server PIR).** The block-index question is answered by k ≥ 2
-  independent PIR nodes, each receiving a randomized selector vector. No single
-  node learns which block was requested; the client reconstructs the payload by
-  XOR-ing the k answers. Tor hides IPs from the PIR nodes as well.
+- **Tier 0 (legacy default).** Wallet ↔ lightwalletd directly. Observer + operator
+  see IP and every requested block height.
+- **Tier 1 (Tor onion sync) — already shipped.** Zashi 2.1 (August 2025, beta)
+  tunnels sync through Arti; Zkool (successor to Ywallet) ships native Arti
+  support. This hides the IP from the operator and hides sync traffic from path
+  observers. What remains: the operator still sees per-wallet query patterns,
+  and the wallet's stable client onion identity links its sessions over time.
+- **Tier 2 (Tor + multi-server PIR) — this proposal.** The block-index question is
+  answered by k ≥ 2 independent PIR nodes, each receiving a randomized selector
+  vector. No single node learns which block was requested; the client
+  reconstructs the payload by XOR-ing the k answers. PIR composes with the
+  wallets' existing Arti transports and removes the last visible signal: the
+  block index itself.
 
 ## 3. PIR schemes in the PoC
 

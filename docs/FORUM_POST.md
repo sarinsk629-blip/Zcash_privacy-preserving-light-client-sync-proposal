@@ -13,19 +13,25 @@ Hi all,
 I've submitted a ZCG grant application and I'm posting it here for community
 input, as required: ISSUE_URL
 
-**The problem:** Zashi/Ywallet sync through lightwalletd servers, and that
-sync leaks the user's IP address and which compact blocks the wallet
-downloads — a metadata trail that can deanonymize otherwise shielded
-activity. lightwalletd's own wallet-app threat model documents these
-limitations, and ZCG's open RFP for lightwalletd infrastructure asks for a
-multi-operator solution.
+**The problem:** Zashi and other light wallets sync through lightwalletd
+servers. Since Zashi 2.1 (Aug 2025) wallets tunnel sync through Tor via Arti,
+so the IP leak is largely handled — but the sync operator still sees which
+compact blocks the wallet downloads, and a wallet's stable client onion
+identity links all of its sync sessions. That metadata trail can deanonymize
+otherwise shielded activity. lightwalletd's own wallet-app threat model
+documents these limitations, and ZCG's open RFP for lightwalletd
+infrastructure asks for a multi-operator solution.
 
-**The proposal:** a three-tier privacy stack for light client sync, aligned
-with upstream work already in flight (librustzcash #2665, SDK #1741):
+**The proposal:** build the layer Tor does not provide — query-pattern
+privacy — on top of the ecosystem's shipped Arti/Tor transports (no Tor
+re-implementation), aligned with upstream work (librustzcash #2665, SDK
+#1741):
 
-- Tier 1 — Tor onion sync for lightwalletd (ships first)
-- Tier 2 — Tor + multi-server PIR, where no single sync node learns which
-  block you requested (information-theoretic, per-server privacy)
+- Tier 1 — Tor onion sync: **already shipped** (Zashi 2.1 via Arti; native
+  in Zkool, Ywallet's successor) — acknowledged and built upon, not redone
+- Tier 2 — Tor + multi-server PIR (this proposal): no single sync node
+  learns which block you requested (information-theoretic, per-server
+  privacy)
 - Deployment: 3–5 independently operated testnet nodes + a runbook so more
   operators can join — the multi-team model the RFP calls for
 

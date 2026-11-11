@@ -57,32 +57,39 @@ background/responsibilities. Do not invent people.)
 
 **Project Summary:**
 
-PrivateSync brings metadata privacy to Zcash light wallet sync: a Tor-onion
-deployment model for lightwalletd plus a multi-server PIR protocol, so light
-wallet users stop leaking their IP address and block-access patterns to sync
-server operators. A working, CI-tested open-source PoC already exists in the
-public proposal repository.
+PrivateSync brings query-pattern privacy to Zcash light wallet sync: wallets
+already tunnel sync through Tor via Arti (Zashi 2.1; native in Zkool), which
+hides the IP — this project adds multi-server PIR so the sync operator can no
+longer see or link which blocks a wallet downloads, plus the multi-operator
+lightwalletd network ZCG's open RFP asks for. A working, CI-tested open-source
+PoC already exists in the public proposal repository.
 
 **Project Description:**
 
-Zcash light wallets (Zashi, Ywallet) sync through lightwalletd servers. Every
-sync reveals the user's IP address to the operator, and the operator can log
-which compact blocks each wallet downloads — a metadata trail that can
-deanonymize otherwise fully shielded activity.
+Zcash light wallets (Zashi, Zkool) sync through lightwalletd servers. Since
+Zashi 2.1 (August 2025), wallets tunnel sync through Tor via the Arti client —
+building on ZCG-funded Arti work — which hides the user's IP address from the
+operator. What Tor does not hide: **which compact blocks the wallet downloads**
+(correlatable with transaction timing), and the **stable client onion
+identity** that lets an operator link all of a wallet's sync sessions over
+time. This remains a metadata trail that can deanonymize otherwise fully
+shielded activity.
 
-This project delivers a three-tier privacy stack for light client sync, built
-on existing Zcash infrastructure and aligned with work the ecosystem has
-already planned:
+This project delivers the layer Tor does not provide, built on existing Zcash
+infrastructure and composed with the wallets' shipped Arti transports (we
+deliberately do NOT re-implement what already ships):
 
-- **Tier 1 — Tor onion sync:** lightwalletd behind onion services; the SDK
-  transport connects over Tor. This matches the direction of librustzcash
-  issue #2665 ("backend-agnostic network-privacy layer") and
+- **Tier 1 — Tor onion sync (already shipped, acknowledged):** Zashi 2.1
+  tunnels sync through Arti (beta, August 2025); Zkool — the successor to
+  Ywallet — ships native Arti support. This matches the direction of
+  librustzcash issue #2665 ("backend-agnostic network-privacy layer") and
   zcash-android-wallet-sdk issue #1741 ("Use new Lightwalletd calls over Tor").
-- **Tier 2 — Tor + multi-server PIR:** the block-index question is answered by
-  k ≥ 2 independent PIR nodes using Chor-style XOR selection (√N matrix
-  layout). Each node receives a uniformly random selector, so no single node
-  learns which block was requested — information-theoretic, per-server privacy
-  with no cryptographic hardness assumptions.
+- **Tier 2 — Tor + multi-server PIR (this proposal):** the block-index
+  question is answered by k ≥ 2 independent PIR nodes using Chor-style XOR
+  selection (√N matrix layout). Each node receives a uniformly random
+  selector, so no single node learns which block was requested —
+  information-theoretic, per-server privacy with no cryptographic hardness
+  assumptions. PIR removes the last visible signal: the block index itself.
 
 Goals: (1) a hardened, benchmarked reference implementation with a written
 spec; (2) a prototype privacy transport that plugs into the SDK networking
@@ -95,28 +102,37 @@ repository.
 
 **Proposed Problem:**
 
-1. IP disclosure: light wallets connect to lightwalletd directly; the operator
-   learns the user's IP on every sync.
-2. Query-pattern disclosure: the server sees which compact blocks a wallet
-   pulls, correlatable with transaction timing.
+Already solved elsewhere (and not re-done by this proposal): the IP-address
+leak — Zashi 2.1 ships Tor via Arti (beta), Zkool ships native Arti support.
+
+What is still open:
+
+1. Query-pattern disclosure: even over Tor, the server sees which compact
+   blocks a wallet pulls, correlatable with transaction timing.
+2. Session linkability: a wallet's stable client onion identity lets the
+   operator cluster all of its sync sessions over time, with or without IP
+   visibility.
 3. Centralization: wallet defaults point at a few servers; one operator sees
-   metadata for a large share of users.
+   metadata for a large share of users — the open lightwalletd RFP targets
+   exactly this.
 4. These limitations are documented in lightwalletd's own wallet-app threat
    model, and metadata privacy remains a live community concern (e.g., the
    ZachXBT report on Zashi CrossPay traceability, Oct 2025).
 
 **Proposed Solution:**
 
-A tiered sync stack (direct → Tor → Tor+PIR) with a swappable privacy
-transport for light clients:
+A sync stack composed with the wallets' existing Arti/Tor transports, adding
+the missing layer:
 
-- Tier 1 ships first: onion-addressed lightwalletd endpoints + a transport
-  wrapper consistent with the upstream network-privacy-layer work.
-- Tier 2 adds multi-server PIR: the client splits its request into uniformly
-  random selector vectors; each PIR node answers with an XOR of selected
-  matrix rows; the client reconstructs the block locally. Bandwidth overhead
-  is O(√N) upload / O(√N·B) download per retrieval — benchmarked openly, and
-  the shipped default falls back to Tier 1 if overhead is too high.
+- Tier 1 (shipped by the ecosystem, not by this grant): onion-addressed
+  lightwalletd access via Arti — Zashi 2.1 (beta) and Zkool already provide
+  it. We build on it and benchmark against it.
+- Tier 2 (this proposal): multi-server PIR — the client splits its request
+  into uniformly random selector vectors; each PIR node answers with an XOR
+  of selected matrix rows; the client reconstructs the block locally.
+  Bandwidth overhead is O(√N) upload / O(√N·B) download per retrieval —
+  benchmarked openly, and PIR ships as opt-in while Tor-only (already the
+  wallet default) remains the fallback if overhead is too high.
 - Deployment follows the multi-operator model the ZCG lightwalletd RFP asks
   for: independent nodes, runbook, monitoring.
 
@@ -150,9 +166,10 @@ Open-source software (MIT) and documentation:
 - M1: extend PoC to streaming sync (multi-block, incremental chains),
   parameterize for realistic compact-block sizes, publish benchmarks + open
   spec.
-- M2: implement the transport as a swappable networking layer mirroring the
-  upstream interface direction; Tor as default, PIR behind a flag; benchmark
-  vs baseline on testnet.
+- M2: implement the PIR fetch layer as a swappable networking component
+  mirroring the upstream interface direction (librustzcash #2665) — layered on
+  the wallets' existing Arti/Tor transports, no Tor re-implementation; PIR
+  opt-in behind a flag; benchmark vs Tor-only baseline on testnet.
 - M3: package node deployment (Docker/compose, onion service config),
   runbook, monitoring dashboard; recruit operators publicly.
 - M4: external review (fixed scope, privacy layer focus), fixes, upstream
@@ -160,18 +177,20 @@ Open-source software (MIT) and documentation:
 
 **Upstream Merge Opportunities:**
 
-- Repos forked/modified: `zcash/lightwalletd` (onion-service deployment
-  configs and docs); transport prototype aligned with `zcash/librustzcash`
-  (`zcash_client_backend` networking direction, issue #2665) and
-  `zcash/zcash-android-wallet-sdk` (issue #1741).
-- Changes: onion endpoint documentation/config for lightwalletd operators; a
-  backend-agnostic privacy transport wrapper; optional PIR fetch extension
-  specified so node software can adopt it incrementally.
-- Upstream benefit: wallet SDKs gain metadata-protected sync without protocol
-  changes; node operators gain a standard onion deployment recipe.
+- Repos forked/modified: `zcash/lightwalletd` (PIR fetch extension spec +
+  deployment docs for multi-operator nodes); prototype aligned with
+  `zcash/librustzcash` (`zcash_client_backend` networking direction, issue
+  #2665) and `zcash/zcash-android-wallet-sdk` (issue #1741). Tor transport
+  itself is NOT re-implemented — the wallets' shipped Arti integrations
+  (Zashi 2.1, Zkool) are the transport layer we compose with.
+- Changes: an optional PIR fetch extension specified so node software can
+  adopt it incrementally; reference client implementation; onion deployment
+  docs for node operators.
+- Upstream benefit: wallet SDKs gain query-pattern-protected sync without
+  protocol changes; node operators gain a standard multi-operator recipe.
 - Coordination: engage maintainers on the existing issues (#2665, #1741)
   before/while building; no consensus changes, so merge risk is low.
-- Timeline: transport PRs opened during M2, finalized in M4 after review.
+- Timeline: PIR fetch PRs opened during M2, finalized in M4 after review.
 
 **Open Source License:** MIT (already applied in the repository).
 
@@ -272,19 +291,21 @@ completion and acceptance.
   Amount (USD): 10000
   Expected Completion Date: 2027-04-30
   User Stories:
-    - "As a wallet developer, I want a swappable privacy transport prototype
-      aligned with librustzcash #2665, so that I can adopt Tor/PIR sync
-      behind a clean interface."
-    - "As a light wallet user, I want to sync without revealing my IP
-      address, so that my activity cannot be linked to my identity."
+    - "As a wallet developer, I want a PIR fetch layer prototype aligned with
+      librustzcash #2665, so that I can add query-pattern privacy on top of
+      the wallet's existing Arti/Tor transport without re-implementing it."
+    - "As a light wallet user, I want the sync operator to be unable to see
+      or link which blocks I download, so that my activity cannot be
+      profiled from sync metadata."
   Deliverables:
-    - Privacy transport prototype (Tor default; PIR behind a flag) matching
-      the upstream networking interface direction
-    - Benchmark report: sync time + bandwidth vs direct baseline, on testnet
+    - PIR fetch prototype (opt-in behind a flag) layered on the wallets'
+      existing Arti/Tor transport direction (upstream networking interface)
+    - Benchmark report: sync time + bandwidth vs Tor-only baseline, on
+      testnet
     - Findings posted to the upstream issue threads (#2665, #1741)
   Acceptance Criteria: the prototype syncs a testnet chain end-to-end over
-  Tor; the benchmark report is published in the repo; at least one upstream
-  maintainer has commented on the posted findings.
+  Tor+PIR; the benchmark report is published in the repo; at least one
+  upstream maintainer has commented on the posted findings.
 
 - Milestone: 3
   Amount (USD): 8000

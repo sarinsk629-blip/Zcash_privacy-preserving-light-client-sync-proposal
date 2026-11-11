@@ -7,27 +7,38 @@
 
 ## 1. Summary
 
-Zcash light wallets (Zashi, Ywallet) sync through lightwalletd servers. Today that
-sync leaks the user's IP address to the server operator, and the server can observe
-which blocks the wallet downloads — a metadata trail that deanonymizes otherwise
-shielded transactions. ZCG's open RFP ["Zcash Lightwalletd Infrastructure
-Development and Maintenance"](https://forum.zcashcommunity.com/t/rfp-zcash-lightwalletd-infrastructure-development-and-maintenance/47080)
-asks for a global, multi-operator lightwalletd infrastructure; ZCG's priority list
-separately calls for "network layer privacy solutions for light client SDKs" and
-"R&D decentralized light client syncing". This proposal delivers exactly that layer:
-a Tor-integrated, multi-server PIR sync network for light clients, built as open
-source and aligned with upstream work (librustzcash #2665,
+Zcash light wallets (Zashi, Zkool) sync through lightwalletd servers. Since Zashi
+2.1 (August 2025), wallets tunnel sync through Tor via the Arti client — building
+on ZCG-funded Arti work — which hides the user's IP address from the operator.
+What Tor does not hide: **which compact blocks the wallet downloads**, and the
+**stable client onion identity** that lets an operator link all of a wallet's
+sync sessions. ZCG's open RFP ["Zcash Lightwalletd Infrastructure Development
+and Maintenance"](https://forum.zcashcommunity.com/t/rfp-zcash-lightwalletd-infrastructure-development-and-maintenance/47080)
+asks for a global, multi-operator lightwalletd infrastructure; ZCG's priority
+list separately calls for "network layer privacy solutions for light client
+SDKs" and "R&D decentralized light client syncing". This proposal delivers the
+missing layer: **multi-server PIR for query-pattern privacy**, composed with the
+shipped Tor transports, plus the multi-operator node network the RFP asks for —
+built as open source and aligned with upstream work (librustzcash #2665,
 zcash-android-wallet-sdk #1741).
 
 ## 2. Problem
 
-1. **IP disclosure.** Light wallets connect to lightwalletd over gRPC; the operator
-   learns the wallet's IP address on every sync.
-2. **Query-pattern disclosure.** The server sees which compact blocks a wallet
-   pulls, which can be correlated with transaction timing and the wallet's view of
-   the chain.
-3. **Centralization pressure.** Wallet defaults point at a handful of servers; a
-   single operator sees metadata for a large fraction of users.
+Already solved elsewhere (and deliberately **not** re-done by this proposal):
+the IP-address leak — Zashi 2.1 ships Tor via Arti (beta), and Zkool (the
+successor to Ywallet) ships native Arti support.
+
+What is still open:
+
+1. **Query-pattern disclosure.** Even over Tor, the sync operator sees which
+   compact blocks a wallet pulls, which can be correlated with transaction
+   timing and the wallet's view of the chain.
+2. **Session linkability.** A wallet presents a stable client onion identity;
+   the operator can cluster every sync session of that wallet over time — with
+   or without IP visibility.
+3. **Centralization pressure.** Wallet defaults point at a handful of servers;
+   a single operator sees metadata for a large fraction of users. The open RFP
+   for multi-operator lightwalletd infrastructure targets exactly this.
 4. lightwalletd's own documentation directs developers to the wallet-app threat
    model describing these limitations.
 
@@ -35,15 +46,18 @@ zcash-android-wallet-sdk #1741).
 
 | Tier | Transport | IP hidden? | Block queries hidden? | Cost |
 |------|-----------|:----------:|:---------------------:|------|
-| 0    | direct gRPC (status quo) | ✗ | ✗ | none |
-| 1    | Tor onion lightwalletd | ✓ | ✗ (operator sees queries) | ~zero |
-| 2    | Tor + multi-server PIR | ✓ | ✓ (no server learns which block) | low bandwidth overhead |
+| 0    | direct gRPC (legacy default) | ✗ | ✗ | none |
+| 1    | Tor onion lightwalletd — **shipped** (Zashi 2.1 via Arti; native in Zkool) | ✓ | ✗ (operator sees queries) | ~zero |
+| 2    | Tor + multi-server PIR — **this proposal** | ✓ | ✓ (no server learns which block) | low bandwidth overhead |
 
-Tier 1 is deployable immediately and matches work already planned upstream
-(librustzcash #2665 "backend-agnostic network-privacy layer"). Tier 2 applies
-Chor–Gilboa–Naor style XOR-based multi-server PIR over compact-block data so that
-each server answers a randomized query and no individual server learns which block
-the client wants; client uploads scale as O(√N) with the √N×√N layout.
+Tier 1 already ships in wallets (Zashi 2.1 tunnels sync through Arti; Zkool
+ships native Arti support, building on ZCG-funded Arti work). This proposal
+builds **on top of** that work rather than reimplementing it: Tier 2 applies
+Chor–Gilboa–Naor style XOR-based multi-server PIR over compact-block data so
+that each server answers a randomized query and no individual server learns
+which block the client wants; client uploads scale as O(√N) with the √N×√N
+layout. PIR composes with the wallets' existing Arti transports — it removes
+the last visible signal, the block index.
 
 The PoC in this repository (`poc/`) implements all three tiers with tests: a mock
 compact-block chain, PIR servers and client, simulated Tor circuit wrappers, and
@@ -55,7 +69,7 @@ code — the milestones below harden and productionize it.
 | # | Milestone | Duration | Budget | Deliverables & acceptance criteria |
 |---|-----------|----------|--------|-------------------------------------|
 | M1 | PoC hardening + open spec | 2 mo | $4,000 | CI-green PoC extended to streaming sync; written spec (threat model, PIR parameters, error handling); published on the forum for comment |
-| M2 | SDK integration prototype | 2 mo | $10,000 | Privacy transport prototype against zcash-client-backend patterns (mirrors librustzcash #2665); benchmark report: sync time + bandwidth vs baseline |
+| M2 | PIR integration prototype | 2 mo | $10,000 | PIR fetch prototype layered on the wallets' existing Arti/Tor transport direction (aligned with librustzcash #2665 — no Tor re-implementation); benchmark report: sync time + bandwidth vs Tor-only baseline |
 | M3 | Distributed sync node pilot | 3 mo | $8,000 | 3–5 independently operated testnet lightwalletd nodes with onion endpoints; node-operator runbook; public monitoring dashboard |
 | M4 | Audit, docs, handover | 1 mo | $5,000 | External code review of the privacy layer; final documentation; upstream PRs submitted; maintenance/handover plan |
 | | **Total** | **8 mo** | **$27,000** | |
@@ -69,8 +83,9 @@ day one. See [BUDGET.md](BUDGET.md) for the line-item breakdown.
   need.
 - **Hits three listed priorities**: SDK network-privacy, decentralized light client
   syncing, light client servers/infrastructure.
-- **Builds on existing infra** (lightwalletd, librustzcash Tor work) — does not
-  reinvent wallets or payments.
+- **Builds on existing infra** (wallets' shipped Arti/Tor integrations,
+  lightwalletd, upstream network-privacy-layer work) — does not reinvent
+  wallets, payments, or Tor integration.
 - **Modest, milestone-based budget** in the range ZCG has actually approved
   ($1.5k–40k cluster in recent meetings).
 - **Public, verifiable progress**: CI-green repo, spec review on the forum,
@@ -87,11 +102,13 @@ Team details are provided in the grant application issue itself
 
 ## 7. Risks and mitigations
 
-- **PIR bandwidth overhead at mainnet scale** → benchmark in M1–M2; fall back to
-  Tier 1 (Tor-only) as the shipped default if overhead exceeds budget.
+- **PIR bandwidth overhead at mainnet scale** → benchmark in M1–M2; ship PIR as
+  opt-in while Tor-only (already the wallet default) remains the fallback.
 - **Node operator recruitment** → the RFP explicitly asks for multi-operator
   infrastructure; coordinate with the ZCG committee and existing node runners.
-- **Upstream drift** → track librustzcash #2665; deliver upstream-compatible APIs.
+- **Upstream drift** → track librustzcash #2665; if wallets adopt PIR natively,
+  our specification and reference implementation land in the SDK path rather
+  than competing with it.
 
 ## 8. Community engagement
 
